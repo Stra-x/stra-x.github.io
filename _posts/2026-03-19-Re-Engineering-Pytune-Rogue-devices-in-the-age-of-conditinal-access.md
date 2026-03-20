@@ -78,8 +78,6 @@ In the `new_device()` function we then call another function called `deviceauth(
 
 The enrollment resource is covered by two of our CA policies (CA1 and CA3) and we authenticated with a username/password without satifying MFA so the PRT generated does not have an MFA claim and we are blocked by conditional access.
 
-<br>
-
 ## Issue 2 - Fix
 
 Looking at why this token was being requested, you can see in the image above that the access token is decoded and the tenant, device id and object id for the user are extracted. After this as far as I can see the token is then discarded. We need to avoid this token request so why not get that information from elsewhere. 
