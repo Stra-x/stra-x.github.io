@@ -38,11 +38,7 @@ Ok so the first thing isn't an actual conditional access block, its more an obse
 
 Pytune uses the [ROADlib](https://github.com/dirkjanm/ROADtools/wiki/roadlib) for certain authentication flows. By default ROADlib uses the ClientID of Azure Active Directory PowerShell to request a token for the specific resource unless specified otherwise. Looking at the code below we see that we only pass the resource and not an alternative ClientID which results in a potentially suspicious sign-in log. 
 
-<br>
-
 ![Azure PowerShell ClientID](/assets/images/azure-powershell-client-id.png)
-
-<br>
 
 ![IoC Sign-in Logs](/assets/images/sign-in-logs-potential-ioc.png)
 
