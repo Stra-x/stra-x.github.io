@@ -1,5 +1,5 @@
 ---
-title: "Re-Engineering Pytune - Rogue devices in the age of conditinal access Part 1"
+title: "Re-Engineering Pytune - Rogue devices in the age of conditional access Part 1"
 excerpt: "Re-Engineering Pytune to evade common conditional access policies"
 classes: wide
 date: 2026-03-19 
@@ -27,7 +27,7 @@ Before we continue, lets quickly go over the conditonal access policies that we 
 
 # Pytune Analysis
 
-With pytune being blocked by our CAs the best place to start figuring out how we fix this is by looking at the pytune code and writing our own script using pytune as the insperation. 
+With pytune being blocked by our CAs the best place to start figuring out how we fix this is by looking at the pytune code and writing our own script using pytune as the inspiration. 
 
 First lets answer the question of why we werent blocked from joining a device to Entra, shouldn't MFA for all resources prevent that? Well no, the reason being is we are requesting an access token for the "Device Registration Service" which by design is not part of all resources and I believe this is to prevent a deadlock issue were to enforce CA policies like "require compliant device," the device must first be registered. If DRS resource was under "All Resources” you can't register a device until it's compliant but can't be compliant until it's registered. We will see later however this can be prevented using an MFA policy for "User Actions".
 
@@ -112,7 +112,7 @@ My point being these records point to Microsoft infrastructure routing the user 
 
 Yes is the short answer. Doing some googling I came across Microsofts [Mobile Device Enrollment Protocol Version 2](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/4d7eadd5-3951-4f1c-8159-c39e07cbe692). In Section 4. Protocol Examples, we have some nice examples to try and get the correct endpoint. 
 
-By sending the correctly formated SOAP request to `https://enrollment.manage.microsoft.com/enrollmentserver/discovery.svc` we will get the correct endpoint for the target organisation. We submit the users email in the request and Microsoft uses it to look up the correct tenant and return the correct enrollment URL, additionally the user doesn't not have to exist in the target tenant. Below is an example of the request.
+By sending the correctly formated SOAP request to `https://enrollment.manage.microsoft.com/enrollmentserver/discovery.svc` we will get the correct endpoint for the target organisation. We submit the users email in the request and Microsoft uses it to look up the correct tenant and return the correct enrollment URL, additionally the user doesn't have to exist in the target tenant. Below is an example of the request.
 
 ```python
 import requests
