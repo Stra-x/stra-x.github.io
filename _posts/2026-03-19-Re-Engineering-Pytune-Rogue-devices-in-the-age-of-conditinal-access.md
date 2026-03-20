@@ -18,7 +18,7 @@ This got me thinking though, pytune is blocked quite easily by conditional acces
 Before we continue, lets quickly go over the conditonal access policies that we will be up against, we will take a look at Intune policies later. 
 
 - CA1 - MFA for "All Resources" - Applied to all users - No exclusions.
-- CA2 - Require Hybrid AD Joined or Complaint Device - Applied to all users - No exclusions.
+- CA2 - Require Hybrid AD Joined or Compliant Device - Applied to all users - No exclusions.
 - CA3 - Require MFA for Intune enrollment - Applied to all users - Applied to Intune & Intune Enrollment resources.
 
 # Pytune Analysis
