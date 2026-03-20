@@ -181,7 +181,7 @@ Then I stumbled across a blog that temp43487580 published but I had not comes ac
 It got me thinking, these conditional access policies we are encountering are applied to users not devices, yes we do have the option to put conditional access policies on user actions which we will cover later but to get the required access token to enroll the device and evade the policies requiring MFA at this point in the chain, why not use the device prinpal authentication like Pytune is doing and have the added benefit of bypassing enrollment restrictions as detalied by temp43487580 in their blog.
 
 So thats what I did. The function below does the following:
-- Extracts the devices certififcate and key from the pfx file when we joined the device to Entra
+- Extracts the devices certificate and key from the pfx file when we joined the device to Entra
 - Uses the `get_devicetoken()` function from Pytune utils.py which returns an access token for the enrollment resource
 
 ```python
