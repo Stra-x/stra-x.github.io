@@ -176,7 +176,7 @@ Pytune has a command line option for ` --device_token` when using the `enroll_in
 
 ![Device JWT Assertion](/assets/images/device-jwt-assertion.png)
 
-Then I stumbled across a blog that temp43487580 published but I had not comes across before [Bypassing Enrollment Restrictions to Break BYOD Barriers in Intune](https://temp43487580.github.io/intune/bypass-enrollment-restictions-to-break-byod-barriers-in-intune/). The blog details several techniques for bypassing enrollment restrictions in Intune. Method 2 details bypassing these restrictions using device principal authentication and what stuck out to me in this was the mention of **non user-driven enrollment**. 
+Then I stumbled across a blog that temp43487580 published that I had not come across before [Bypassing Enrollment Restrictions to Break BYOD Barriers in Intune](https://temp43487580.github.io/intune/bypass-enrollment-restictions-to-break-byod-barriers-in-intune/). The blog details several techniques for bypassing enrollment restrictions in Intune. Method 2 details bypassing these restrictions using device principal authentication and what stuck out to me in this was the mention of **non user-driven enrollment**. 
 
 It got me thinking, these conditional access policies we are encountering are applied to users not devices, yes we do have the option to put conditional access policies on user actions which we will cover later but to get the required access token to enroll the device and evade the policies requiring MFA at this point in the chain, why not use the device prinpal authentication like Pytune is doing and have the added benefit of bypassing enrollment restrictions as detalied by temp43487580 in their blog.
 
