@@ -1,6 +1,6 @@
 ---
 title: "Re-Engineering Pytune - Rogue devices in the age of conditinal access Part 1"
-excerpt: "TBD"
+excerpt: "Re-Engineering Pytune to evade common conditional access policies"
 classes: wide
 date: 2026-03-19 
 ---
@@ -254,4 +254,4 @@ Now time for the true test, we implement all those changes and see what happens.
 
 ![phase5](/assets/images/phase5.png)
 
-At this point we have succesfully bypassed some of the most common conditional access policies encountered. I plan to follow up with a part 2 to go over, compliancy in Intune and the nuances I have seen and demonstrating a complete attack chain taking us to a PRT with compliance and MFA claims. Again huge shoutout to temp43487580!
+At this point we have succesfully bypassed some of the most common conditional access policies I personally encounter. I plan to follow up with a part 2 to go over, compliancy in Intune and the nuances I have seen and demonstrating a complete attack chain taking us to a PRT with compliance and MFA claims. Again huge shoutout to temp43487580!
