@@ -5,10 +5,6 @@ classes: wide
 date: 2026-03-19 
 ---
 
-> **Note 1:** To remain transparent, Claude Code was utilised during this research and development. Whilst I am AI avoidant if thats the word, I did see benefits to using Claude helping free my time to do research and not spend hours debugging my awful code because I missed a bracket.
-
-> **Note 2:** Before we begin I want to do a huge shoutout to temp43487580 who wrote the original Pytune code which this is all based on, this just builds on their tooling and research.
-
 Whilst rebuilding my test Entra ID tenant, I decided to quickly configure Intune as this isn't an area where I had spent much time other than looking at one or two script attacks. Once configured I wanted to quickly get a device enrolled just to see if everything was working, for this I turned to pytune instead of building out a host. 
 
 After firing off pytune, I could add a device to Entra no problem but suddenly I was blocked for enrollment into Intune. Its was a bit of a doh! moment because in my test tenant I always have several conditional access policies up and running to test against but forgot to turn them off for this. 
@@ -249,3 +245,8 @@ Now time for the true test, we implement all those changes and see what happens.
 ![phase5](/assets/images/phase5.png)
 
 At this point we have succesfully bypassed some of the most common conditional access policies I personally encounter. I plan to follow up with a part 2 to go over, compliancy in Intune and the nuances I have seen and demonstrating a complete attack chain taking us to a PRT with compliance and MFA claims. Again huge shoutout to temp43487580!
+
+
+> **Note 1:** To remain transparent, Claude Code was utilised during this research and development. Whilst I am AI avoidant if thats the word, I did see benefits to using Claude helping free my time to do research and not spend hours debugging my awful code because I missed a bracket.
+
+> **Note 2:** Before we begin I want to do a huge shoutout to temp43487580 who wrote the original Pytune code which this is all based on, this just builds on their tooling and research.
