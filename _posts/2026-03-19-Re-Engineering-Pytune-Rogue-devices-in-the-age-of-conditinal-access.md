@@ -13,7 +13,7 @@ After firing off pytune, I could add a device to Entra no problem but suddenly I
 
 This got me thinking though, pytune is blocked quite easily by conditional access, so can we still get a rogue device enrolled in a tenant bypassing conditional access, then have a device in some compliant state and then push things further to have a PRT (Primary Refresh Token) with MFA and Compliancy claims?
 
-# Conditonal Access Setup
+# Conditional Access Setup
 
 Before we continue, lets quickly go over the conditonal access policies that we will be up against, we will take a look at Intune policies later. 
 
