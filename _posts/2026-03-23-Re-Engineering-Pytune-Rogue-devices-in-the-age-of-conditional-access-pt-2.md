@@ -481,4 +481,4 @@ If we decode the tokens, we see we have the MFA claims and device compliance cla
 
 Also keep in mind, if you get the MS Broker refresh token for any other user you can use that the same way above to mint tokens as that user and transfer compliance claims to move laterally without enrolling/joining a device again :) 
 
-Thanks for reading, when I release the OutOfTune script I will update this post with a link.
+Thanks for reading, heres OutOfTune https://github.com/Stra-x/OutOfTune
