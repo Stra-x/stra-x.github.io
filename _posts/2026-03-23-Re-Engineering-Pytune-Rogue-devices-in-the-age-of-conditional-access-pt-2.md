@@ -21,7 +21,7 @@ With this is mind we can kick off a device code phishing campaign for an applica
 
 ![MS Broker access token](/assets/images/outoftune2/ms-broke-device-code-auth.png)
 
-Again, this doesn't have to be device code phishing, I am sure folks out there have very creative way to get their hands on the right tokens. We just need to functionality in our script to accept an access token in place of a username and password.
+Again, this doesn't have to be device code phishing, I am sure folks out there have very creative way to get their hands on the right tokens. We just need to add functionality in our script to accept an access token in place of a username and password.
 
 # Intune Policies
 
