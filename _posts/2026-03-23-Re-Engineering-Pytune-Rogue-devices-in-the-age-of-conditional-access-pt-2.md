@@ -33,7 +33,7 @@ After we enroll a rogue device into Intune we then perform the `checkin` phase. 
 
 Quite a few settings within Intune policies rely on self reporting and as Intune has no independent way to verify most of these values, it trusts whatever the device sends. For example, firewall status, OS version, AV etc. and because all these setting are self reported we just report their status as the device, this results in any policies requiring these settings to be configured being bypasses. 
 
-In Pytune you can edit the `device.py` file to specify the settings you would like to self report. As an alternative I went with introducing profiles for ease of use which can specified during the `checkin` phase as a JSON file and all the self reporting values are sent. Below is an example profile with some details about each setting. 
+In Pytune you can edit the `device.py` file to specify the settings you would like to self report. As an alternative I went with introducing profiles for ease of use which can be specified during the `checkin` phase as a JSON file and all the self reporting values are sent. Below is an example profile with some details about each setting. 
 
 ```json
 {
