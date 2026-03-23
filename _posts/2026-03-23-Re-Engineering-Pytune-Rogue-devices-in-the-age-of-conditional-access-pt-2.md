@@ -2,7 +2,7 @@
 title: "Re-Engineering Pytune - Rogue devices in the age of conditional access Part 2"
 excerpt: "Re-Engineering Pytune to evade common conditional access policies part 2"
 classes: wide
-date: 2026-03-19 
+date: 2026-03-23 
 ---
 
 In the part 1 we looked at how we can re-write Pytune in order to bypass some of the most common conditional access policies that are encountered today. In part 2 with our new script in hand, we will look at an additional conditional access policy, one way we can bypass it and then start looking at Intune itself and some of the nuances relating to getting our rouge device marked as complaint and finally at the end of it all a primary refresh token that has complaint and MFA claims to start printing tokens.
