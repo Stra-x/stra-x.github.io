@@ -13,9 +13,9 @@ In part 1, we managed to bypass conditional access policies using various flows,
 
 ![Device Join CA](/assets/images/outoftune2/device-join-ca.png)
 
-Up until now, when we join a device to Entra as our first step in the attack, we have been using the username and password of our target user which uses the [ROPC](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth-ropc) (Resource Owner Password Credentials) authentication flow to obtain an access token for the `device registration service` and then join a device. However, with this new conditional access policy multi-factor authentication is required and the ROPC is incompatible with MFA thus we cannot satisfy it and have no MFA claim in our token to join a device.
+Up until now, when we join a device to Entra as our first step in the attack, we have been using the username and password of our target user which uses the [ROPC](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth-ropc) (Resource Owner Password Credentials) authentication flow to obtain an access token for the `device registration service` and then join a device. However, with this new conditional access policy multi-factor authentication is required and the ROPC flow is incompatible with MFA thus we cannot satisfy it and have no MFA claim in our token to join a device.
 
-After the previous work to bypass conditional access policies, knowing that this policy would prevent everything out right was initially disappointing but then I got to thinking how be can get around it. What we need is an access token for the device registration service with an MFA claim and the path of least resistance that comes to mind here is device code phishing. Any method to get your hands on this specific token and its refresh token will work but for the sake of simplicity I will stick with device code phishing. 
+After the previous work to bypass conditional access policies, knowing that this policy would prevent everything out right was initially disappointing but then I got to thinking how be can get around it. What we need is an access token for the device registration service with an MFA claim and the path of least resistance that comes to mind here is device code phishing. Any method to get your hands on this specific token and its refresh token will work, plenty of post-compromise methods available, but for the sake of simplicity I will stick with device code phishing. 
 
 With this is mind we can kick off a device code phishing campaign for an application which has access to the device registration service. I picked the `MS Broker (29d9ed98-a469-4536-ade2-f981bc1d605e)` app, not only because it has access to the device registration service but also has additional benefits which we will see later on. So, with a bit of luck our target user enters the code and authenticates the MS Broker app, satisfying MFA in the process. We will then have an access token for the device registration service with an MFA claim and a refresh token.
 
@@ -125,15 +125,15 @@ Device Health settings, BitLocker, Secure Boot and Code integrity are not self r
 
 ![Device Health](/assets/images/outoftune2/device-health-policy.png)
 
-BitLocker and Secure Boot are verified via TPM measurements and the Microsoft attestation service as you can see in the image above. This happens when Intune sends a `VerifyHealth` command via WNS (Windows Notification Service) and the correct TPM blobs are send back to Intune. I thought with a bit of effort this could be replicated on a physical machine with TPM or virtual machine with a vTPM but as much as I tried I could not get work out the correct flow and kept getting 500 errors from Intune. I do think there is something here and someone much smarter than me will figure it out at some point.
+BitLocker and Secure Boot are verified via TPM measurements and the Microsoft attestation service as you can see in the image above. This verification happens when Intune sends a `VerifyHealth` command via WNS (Windows Notification Service) and the correct TPM blobs are sent back to Intune. I thought with a bit of effort this could be replicated on a physical machine with TPM or virtual machine with a vTPM but as much as I tried I could not work out the correct flow and kept getting 500 errors from Intune. I do think there is something here and someone much smarter than me will figure it out at some point.
 
-At this point I was thinking ok great we can spoof self reporting but if our target has BitLocker, Secure Boot and/or Code integrity enabled we are not going to get compliancy, sad times. I have this policy enabled in my test instance and when looking at the portal again I saw that this policy was marked as `NotApplicable` on my rogue device and more importantly it was marked as compliant?
+At this point I was thinking ok great we can spoof self reporting but if our target has BitLocker, Secure Boot and/or Code integrity enabled we are not going to get compliancy, sad times. I have a policy requiring these three settings enabled in my test instance and when looking at the portal again after enrollment I saw that this policy was marked as `NotApplicable` on my rogue device and more importantly it was marked as compliant?
 
 ![Compliant NotApplicable 1](/assets/images/outoftune2/compliant-notapplicable-1.png)
 
 ![Compliant NotApplicable 2](/assets/images/outoftune2/compliant-notapplicable-2.png)
 
-The question is whats happing here? To be truthful I don't have a definitive answer only a hypothesis. When we enroll our rogue device and the policy for these three settings (BitLocker, Secure Boot, Code integrity) is assigned, we check in the device with the parameters we can self-report such as firewall status etc. but we do not participate in the attestation process which performs the checks for BitLocker, Code Integrity and Secure Boot. As we are not participating in the process Intune has no data to evaluate for these setting to determine a pass or fail so it marks the state as `NotApplicable`. The policy can only fail on a device that actively participates.
+So what's happing here? To be truthful I don't have a definitive answer only a hypothesis. When we enroll our rogue device and the policy for these three settings (BitLocker, Secure Boot, Code integrity) is assigned, we check in the device with the parameters we can self-report such as firewall status etc. but we do not participate in the attestation process which performs the checks for BitLocker, Code Integrity and Secure Boot. As we are not participating in the process Intune has no data to evaluate for these setting to determine a pass or fail so it marks the state as `NotApplicable`. The policy can only fail on a device that actively participates.
 
 It seems that `NotApplicable` is not determined as `Non-Compliant` within Intune and this could potentially be a design decision. I say this because if we take a handful of scenarios into consideration such as:
     
@@ -144,21 +144,21 @@ It seems that `NotApplicable` is not determined as `Non-Compliant` within Intune
     - Device in the process of first compliance cycle.
     - More I haven’t thought of.
 
-These are potential scenarios where the attestation process might not be able to complete and if that non completion automatically meant non-compliant all these would fail compliance and that would be a massive managerial undertaking for large organizations. Again this is a hypothesis and I do not have the definitive answer, I am sure there are some few smart folks out there that know why this is the case and please reach out if you do know.
+These are potential scenarios where the attestation process might not be able to complete and if that non completion automatically meant non-compliant all these would fail compliance and that would be a massive managerial undertaking for large organizations. Again this is a hypothesis and I do not have the definitive answer, I am sure there are some smart folks out there that know why this is the case and please reach out if you do know.
 
 So now we have a compliant device enrolled into Intune even when we have policies we cannot spoof.
 
 ## Device Scope vs Users Scope
 
-One area we might run into trouble is policy scoping within Intune. Policies can be scoped to devices or scoped to users. In the previous images, we saw our device was marked as compliant, the policies was scoped to the device, marked as `NotApplicable`. You might notice though that the `Primary User` field has not been filled out. This is because we used the device principal to enroll the device to circumvent conditional access policies detailed in part 1, meaning there is no primary user for the device just the device identity.
+One area we might run into trouble is policy scoping within Intune. Policies can be scoped to devices or scoped to users. In the previous images, we saw our device was marked as compliant, the policy was scoped to the device and marked as `NotApplicable`. You might notice though that the `Primary User` field has not been filled out. This is because we used the device principal to enroll the device to circumvent conditional access policies detailed in part 1, meaning there is no primary user for the device just the device identity.
 
-In a scenario when policies have been scoped to a device this is not an issue but when policies are scoped to a user they will not bind to the device as as far as Intune is concerned there are no policies to apply. Now, you would think this isn't an issue, no policies to satisfy makes it easier. That would be true if is wasn't for the `Default Device Compliance Policy` which I believe comes with every Intune instance 
+In a scenario when policies have been scoped to a device this is not an issue but when policies are scoped to a user they will not bind to the device because as far as Intune is concerned there are no policies to apply. Now, you would think this isn't an issue, no policies to satisfy makes it easier. That would be true if is wasn't for the `Default Device Compliance Policy` which I believe comes with every Intune instance 
 
 ![Default Device Compliance](/assets/images/outoftune2/default-device-compliance.png)
 
-This policy checks, does the user exist (i.e has a license), is active (is the device checking in) and has a compliance policy assigned. We will fail this default policy if policies are scope to a user as we will not have any policies assigned. 
+This policy checks, does the user exist (i.e has a license), is active (is the device checking in) and has a compliance policy assigned. We will fail this default policy if policies are scoped to a user as we will not have any policies assigned. 
 
-Remember the refresh token we got from the start, this is where it comes into play and it won't be the last time. What we can do is, first use the refresh token to request an access token for `manage.microsoft.com`
+Remember the refresh token we got from the start when we device code phished the target user, this is where it comes into play and it won't be the last time. What we can do is, first use the refresh token to request an access token for `manage.microsoft.com`
 
 ```python
 def exchange_rt_for_manage_token(tenant, refresh_token, client_id=BROKER_CLIENT_ID):
@@ -195,7 +195,7 @@ def send_syncml(self, data, certpath, keypath):
         headers['Authorization'] = f'Bearer {self.aad_user_token}'
 ```
 
-Intune reads the upn from the token and writes it as the device's primary user in its backend.
+Intune reads the UPN from the token and writes it as the device's primary user in its backend.
 
 ![Assign User to Device](/assets/images/outoftune2/assign-user.png)
 
@@ -365,7 +365,7 @@ python .\OutOfTune.py mdm-enroll --profile .\profiles\dell_win11_ent.json
 [+] Phase 4 complete — state saved to chain_state.json
 ```
 
-Now we do out first checking sending device details vis SyncML and also using the refresh token we have for the access token at the beginning to have a user assigned to the device.
+Now we do our first check in sending device details via SyncML and also using the refresh token we have for the access token at the beginning to have a user assigned to the device.
 
 ```
 python .\OutOfTune.py mdm-checkin -r <blah>
@@ -456,11 +456,11 @@ We can also verify this in the portals.
 
 # One Step Further
 
-Ok so we have a complaint device, bypassed all the conditional access policies, outside of reading Intune data how do we take this further. Well, remember the refresh token we had for the MS Broker app, we use it for assigning a user, performing a check for compliance, well it can do much more.
+Ok so we have a complaint device, bypassed all the conditional access policies, outside of reading Intune data how do we take this further. Well, remember the refresh token we had for the MS Broker app, we used it for assigning a user to the device in Intune, performing a check for compliance on our rogue device in Intune, well it can do much more.
 
 This specific refresh token can be used to enrich PRTs with claims, in this instance that includes a claim for MFA and device compliance.
 
-We use the device certificate of the device we enrolled into Entra and is now compliant with the MS Broker refresh token like so
+We just use the device certificate of the device we enrolled into Entra and is now compliant in Intune with the MS Broker refresh token like so
 
 ```
 roadtx prt --cert-pfx .\CORP-LAPTOP-008.pfx --pfx-pass password -r <blah>
@@ -481,4 +481,4 @@ If we decode the tokens, we see we have the MFA claims and device compliance cla
 
 Also keep in mind, if you get the MS Broker refresh token for any other user you can use that the same way above to mint tokens as that user and transfer compliance claims to move laterally without enrolling/joining a device again :) 
 
-Thanks for reading, heres [OutOfTune](https://github.com/Stra-x/OutOfTune)
+Thanks for reading, here's [OutOfTune](https://github.com/Stra-x/OutOfTune)

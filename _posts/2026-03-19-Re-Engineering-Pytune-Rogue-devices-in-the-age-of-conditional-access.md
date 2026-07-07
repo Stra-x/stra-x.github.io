@@ -5,13 +5,13 @@ classes: wide
 date: 2026-03-19 
 ---
 
-Whilst rebuilding my test Entra ID tenant, I decided to quickly configure Intune as this isn't an area where I had spent much time other than looking at one or two script attacks. Once configured I wanted to quickly get a device enrolled just to see if everything was working, for this I turned to pytune instead of building out a host. 
+Whilst rebuilding my test Entra ID tenant, I decided to quickly configure Intune as this wasn't an area where I had spent much time other than looking at one or two script attacks. Once configured I wanted to quickly get a device enrolled just to see if everything was working, for this I turned to pytune instead of building out a host from scratch. 
 
-After firing off pytune, I could add a device to Entra no problem but suddenly I was blocked for enrollment into Intune. Its was a bit of a doh! moment because in my test tenant I always have several conditional access policies up and running to test against but forgot to turn them off for this. 
+After firing off pytune, I could add a device to Entra ID no problem but suddenly I was blocked for enrolling the device into Intune. It was a bit of a doh! moment because in my test tenant I always have several conditional access policies up and running to test against but forgot to turn them off when attempting to enrol a fake device with pytune. 
 
-![Pytune blocked for enrollment](/assets/images/outoftune1/pytune-enrollment-blocked.png)
+![Pytune blocked for enrolment](/assets/images/outoftune1/pytune-enrollment-blocked.png)
 
-This got me thinking though, pytune is blocked quite easily by conditional access, so can we still get a rogue device enrolled in a tenant bypassing conditional access, then have a device in some compliant state and then push things further to have a PRT (Primary Refresh Token) with MFA and Compliancy claims?
+This got me thinking though, pytune was being blocked quite easily by these conditional access policies. The question was then can we still get a rogue device enrolled in a tenant which has some decent conditional access policies in place, get that device in a compliant state andfinally push things further to request a PRT (Primary Refresh Token) for a user using that rogue device and have MFA and device compliancy claims?
 
 # Conditional Access Setup
 
@@ -19,20 +19,20 @@ Before we continue, lets quickly go over the conditional access policies that we
 
 - CA1 - MFA for "All Resources" - Applied to all users - No exclusions.
 - CA2 - Require Hybrid AD Joined or Compliant Device - Applied to all users - No exclusions.
-- CA3 - Require MFA for Intune enrollment - Applied to all users - Applied to Intune & Intune Enrollment resources.
+- CA3 - Require MFA for Intune enrolment - Applied to all users - Applied to Intune & Intune Enrolment resources specifically.
 
 # Pytune Analysis
 
-With pytune being blocked by our CAs the best place to start figuring out how we fix this is by looking at the pytune code and writing our own script using pytune as the inspiration. 
+With pytune being blocked by our CAs the best place to start figuring out how we fix this is by looking at the pytune code with the idea of writing our own script using pytune as the inspiration. 
 
-First lets answer the question of why we weren't blocked from joining a device to Entra, shouldn't MFA for all resources prevent that? Well no, the reason being is we are requesting an access token for the "Device Registration Service" which by design is not part of all resources and I believe this is to prevent a deadlock issue were to enforce CA policies like "require compliant device," the device must first be registered. If DRS resource was under "All Resources” you can't register a device until it's compliant but can't be compliant until it's registered. We will see later however this can be prevented using an MFA policy for "User Actions".
+First, why weren't we blocked from joining a device to Entra ID when MFA for all cloud apps is enforced? The answer is that the Device Registration Service (DRS) is not covered by the "All cloud apps" scope in conditional access. Microsoft excludes specific identity infrastructure endpoints from this scope, DRS among them. The main reason given is deadlock avoidance in the sense that a "require compliant device" CAP cannot be enforced on the very endpoint that establishes device compliance state. Similar logic applies to MFA CAPs on registration, excluding these endpoints from "All cloud apps" avoids the operational impossibility of first-time registration. As we'll see, this specific gap can be closed with a conditional access policy targeting the "Register or join devices" User Action instead which is a separate CAP control path that does apply to DRS.
 
 
 ## Issue #1 - Sign-in Logs
 
-Ok so the first thing isn't an actual conditional access block, its more an observation and potential IoC when joining a device using pytune. 
+This isn't an actual conditional access block, it's an observation and potential IoC when joining a device using pytune. 
 
-Pytune uses the [ROADlib](https://github.com/dirkjanm/ROADtools/wiki/roadlib) for certain authentication flows. By default ROADlib uses the ClientID of Azure Active Directory PowerShell to request a token for the specific resource unless specified otherwise. Looking at the code below we see that we only pass the resource and not an alternative ClientID which results in a potentially suspicious sign-in log. 
+Pytune uses the [ROADlib](https://github.com/dirkjanm/ROADtools/wiki/roadlib) for certain authentication flows. By default, ROADlib uses the ClientID of Azure Active Directory PowerShell to request a token for the specific resource unless specified otherwise. Looking at the code below we see that only the resource is passed and not an alternative ClientID which results in a potentially suspicious sign-in log.
 
 ![Azure PowerShell ClientID](/assets/images/outoftune1/azure-powershell-client-id.png)
 
@@ -40,7 +40,7 @@ Pytune uses the [ROADlib](https://github.com/dirkjanm/ROADtools/wiki/roadlib) fo
 
 ## Issue #1 - Fix
 
-Super easy fix we either edit pytune to pass a more suitable ClinetID or using our own script, call the `gettokens()` function with our desired ClientID like so, just be sure to include the required ROADLib functions.
+Super easy fix, either edit pytune to pass a more suitable ClientID or using a custom script, call the `gettokens()` function with the desired ClientID like so. Just be sure to include the required ROADLib functions.
 
 ```python
 from roadtools.roadlib.auth import Authentication
@@ -63,52 +63,52 @@ log.info("Auth path  : ROPC (username + password)")
 
 ## Issue 2 - new_device()
 
-Our first encounter with conditional access is when using the `enroll_intune` command as seen in the image at the start of the blog. Looking at the code for the `enroll_intune()` function it calls another function `new_device()`.  
+Now, our first encounter with conditional access is when using the `enroll_intune` command as seen in the image at the start of the blog. Looking at the code for the `enroll_intune()` function it calls another function `new_device()`.  
 
 ![new_device()](/assets/images/outoftune1/new-device-function.png)
 
-In the `new_device()` function we then call another function called `deviceauth()` which generates a PRT for the device we joined to Entra and the target user. After the PRT has been generated its then used to request an access and refresh token for Microsoft Authentication Broker (29d9ed98-a469-4536-ade2-f981bc1d605e) and the enrollment resource. 
+In the `new_device()` function we then call another function called `deviceauth()` which generates a PRT for the device we joined to Entra ID and the target user. After the PRT has been generated it's then used to request an access and refresh token for Microsoft Authentication Broker (`29d9ed98-a469-4536-ade2-f981bc1d605e`) and the enrolment resource. 
 
-![PRT Auth Enrollment](/assets/images/outoftune1/prt-auth-enrollment-resource.png)
+![PRT Authentication Enrolment](/assets/images/outoftune1/prt-auth-enrollment-resource.png)
 
 
-The enrollment resource is covered by two of our CA policies (CA1 and CA3) and we authenticated with a username/password without satifying MFA so the PRT generated does not have an MFA claim and we are blocked by conditional access.
+The enrolment resource is covered by two of our CA policies (CA1 and CA3) and we authenticated using the ROPC flow using a username and password without satisfying MFA, the resulting PRT generated does not have an MFA claim resulting in a blocked by conditional access.
 
 ## Issue 2 - Fix
 
-Looking at why this token was being requested, you can see in the image above that the access token is decoded and the tenant, device id and object id for the user are extracted. After this as far as I can see the token is then discarded. We need to avoid this token request so why not get that information from elsewhere. 
+Looking at why this token was being requested and what it was intended to be used for, we can see in the image above that the access token is decoded and the tenant, device id and object id for the user are extracted to be used later on. After this as far as I can see the token is then discarded. What we need to do is find an alternative method to obtain that information and avoid this token request entirely. This information can be obtained like so: 
 
 - **Device ID** - We have the devices certificate, lets extract it from there.
-- **Tenant** - We can take that from a command line arguments, we know the tenant we are targeting at this point.
-- **OID** - The OID (object id) of the user is used later on during our syncing behavior between our rogue device and Intune but during testing Intune didn't care whether it had the object id of the user of the UPN of the user so lets just use the UPN. Just a caveat here, Intune doesn't care for Windows device, I haven't tested any others so not having the OID might cause issues with those. 
+- **Tenant** - We can take that from a command line argument passed by the operator as we likely know the tenant we are targeting at this point.
+- **OID** - The OID (object id) of the user is used later on during our syncing between our rogue device and Intune however, at this point in the flow during my testing Intune didn't care whether it was given the object id of the user or the UPN of the user so we can just use the UPN. Caveat, Intune doesn't care for Windows devices, I haven't tested any others so not having the OID might cause issues with those. 
 
-So we have our new `enroll_intune()` function which doesn't call `new_device()` anymore but gets the required information from the command line and device certificate.
+We now have our new `enroll_intune()` function which doesn't call `new_device()` anymore but instead gets the required information from the command line and device certificate.
 
 ![No Token Needed](/assets/images/outoftune1/get-info-without-token.png)
 
 <br>
 
-## Issue 3 - device.enroll_intune()
+## Issue 3 - device.enrol_intune()
 
-Further down the chain in pytune we see all these token request for Microsoft Graph either using the `gettokens()` function or `prtauth()`. All these requests will be prevent by **CA1** as we have no MFA claims.
+Further down the chain in pytune we see all these token request for Microsoft Graph either using the `gettokens()` function or `prtauth()`. All these requests will be prevented by **CA1** as we have no MFA claim in our access token.
 
-![Graph Enroll Intune](/assets/images/outoftune1/graph-enroll-intune.png)
+![Graph Enrol Intune](/assets/images/outoftune1/graph-enroll-intune.png)
 
 ![More Graph](/assets/images/outoftune1/more-graph-enroll-intune.png)
 
-This got me wondering why Microsoft Graph was needed at all in this chain as we are just communicating with Intune at this point right? The answer was in the `get_enrollment_info()` function.
+This got me wondering why Microsoft Graph was needed at all in this chain as we are just communicating with Intune at this point. The answer was in the `get_enrollment_info()` function.
 
-![get_enrollment_info](/assets/images/outoftune1/get-enrollment-info.png)
+![get_enrolment_info](/assets/images/outoftune1/get-enrollment-info.png)
 
-In the `get_enrollment_info()` the Graph token is used to query the configured Intune endpoints for the enrollment URL. 
+In the `get_enrollment_info()` the Microsoft Graph token is used to query the configured Intune endpoints for the enrolment URL in the tenant. 
 
-Now this was a bit of a head scratcher for me. When I configured Intune, I setup a couple of CNAME records as per the [Microsoft Docs](https://learn.microsoft.com/en-us/intune/intune-service/enrollment/windows-enrollment-create-cname) to enable auto-discovery. I am an Intune noob but as far as I know auto-discovery needs to be setup for features such as autopilot otherwise a user would need to manually enter certain things making the experience not so seamless anymore. You can see if a target has these records simply by doing a DNS record check `nslookup EnterpriseRegistration.<target org>.com`. 
+This was a bit of a head scratcher for me. When I configured Intune, I setup a couple of CNAME records as per the [Microsoft Docs](https://learn.microsoft.com/en-us/intune/intune-service/enrollment/windows-enrollment-create-cname) to enable auto-discovery. I am an Intune noob but as far as I know auto-discovery needs to be setup for features such as autopilot otherwise a user would need to manually enter certain things making the experience not so seamless. You can see if a target has these records simply by doing a DNS record check `nslookup EnterpriseRegistration.<target org>.com`. 
 
-My point being these records point to Microsoft infrastructure routing the user to the correct endpoint for the organization so can we get Microsoft to route use to where we need to go and not have to have access to the tenant to find the correct endpoint?
+The point being, these records point to Microsoft infrastructure that routes the user to the correct endpoint for their organization. Can get Microsoft to route us to where we need to go and not need to have access to the target tenant to find the correct endpoint?
 
-Yes is the short answer. Doing some googling I came across microsoft's [Mobile Device Enrollment Protocol Version 2](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/4d7eadd5-3951-4f1c-8159-c39e07cbe692). In Section 4. Protocol Examples, we have some nice examples to try and get the correct endpoint. 
+Yes is the short answer. Doing some googling I came across Microsoft's [Mobile Device Enrolment Protocol Version 2](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/4d7eadd5-3951-4f1c-8159-c39e07cbe692). In Section 4. Protocol Examples, we have some nice examples to try to do exactly this and get the correct endpoint. 
 
-By sending the correctly formatted SOAP request to `https://enrollment.manage.microsoft.com/enrollmentserver/discovery.svc` we will get the correct endpoint for the target organization. We submit the users email in the request and Microsoft uses it to look up the correct tenant and return the correct enrollment URL, additionally the user doesn't have to exist in the target tenant. Below is an example of the request.
+By sending the correctly formatted SOAP request to `https://enrollment.manage.microsoft.com/enrollmentserver/discovery.svc` we get the correct endpoint for the target tenant. We submit the users email in the request and Microsoft uses it to look up the correct tenant and return the correct enrolment URL, additionally the user doesn't have to exist in the target tenant, we just use any email address with the targets email domain (i.e donotexist@target.com). Below is an example of the request.
 
 ```python
 import requests
@@ -160,29 +160,29 @@ else:
     print(resp.text)
 ```
 
-Now we can get the correct enrollment URL without having do any authentication or Graph queries which would be prevented by conditional access.
+With this method, we now can obtain the correct enrolment URL for the target tenant without having do any authentication or graph queries which would be prevented by conditional access.
 
 <br>
 
 ## Issue 4 - get_enrollment_token()
 
-Lastly, another place where conditional access would stop us is in the `get_enrollment_token()` function. This might look a bit familiar, remember in Issue 2 where we were requesting the same token the exact same way, the only difference is this request has a specific callback URI, this would be blocked by our conditional access policies. We got around this in Issue 2 by avoiding calling the function in the first place but we can't do that here.
+Lastly, another place where conditional access would stop us is in the `get_enrollment_token()` function. This might look a bit familiar, remember in Issue 2 where we were requesting the same token the exact same way, the only difference is this request has a specific callback URI, this would be blocked by our configured conditional access policies. We got around this in Issue 2 by avoiding calling the function in the first place but we can't do that here.
 
 ![Get Enrollment Token](/assets/images/outoftune1/get-enrollment-token.png)
 
-At this point I was clicking around the original pytune code, wondering if there was a different way we could accomplish this and there was, the funny thing was that pytune already had the exact auth flow we needed.
+At this point I was clicking around the original pytune code, wondering if there was a different way we could accomplish this and there was, the funny thing was that pytune already had the exact authentication flow we needed.
 
 Pytune has a command line option for ` --device_token` when using the `enroll_intune` command. Looking at the function you can see a JWT assertion is happening using the devices certificate and then authenticating using the devices identity.
 
 ![Device JWT Assertion](/assets/images/outoftune1/device-jwt-assertion.png)
 
-Then I stumbled across a blog that temp43487580 published that I had not come across before [Bypassing Enrollment Restrictions to Break BYOD Barriers in Intune](https://temp43487580.github.io/intune/bypass-enrollment-restictions-to-break-byod-barriers-in-intune/). The blog details several techniques for bypassing enrollment restrictions in Intune. Method 2 details bypassing these restrictions using device principal authentication and what stuck out to me in this was the mention of **non user-driven enrollment**. 
+Then I stumbled across a blog that temp43487580 published that I had not come across before [Bypassing Enrollment Restrictions to Break BYOD Barriers in Intune](https://temp43487580.github.io/intune/bypass-enrollment-restictions-to-break-byod-barriers-in-intune/). The blog details several techniques for bypassing enrollment restrictions in Intune. Method 2 details bypassing these restrictions using device principal authentication. What stuck out to me was the mention of **non user-driven enrollment**. 
 
 It got me thinking, these conditional access policies we are encountering are applied to users not devices, yes we do have the option to put conditional access policies on user actions which we will cover later but to get the required access token to enroll the device and evade the policies requiring MFA at this point in the chain, why not use the device principal authentication like Pytune is doing and have the added benefit of bypassing enrollment restrictions as detailed by temp43487580 in their blog.
 
-So thats what I did. The function below does the following:
-- Extracts the devices certificate and key from the pfx file when we joined the device to Entra
-- Uses the `get_devicetoken()` function from Pytune utils.py which returns an access token for the enrollment resource
+So that's what I did. The function below does the following:
+- Extracts the devices certificate and key from the pfx file we get from when we joined the device to Entra.
+- Uses the `get_devicetoken()` function from Pytune utils.py which returns an access token for the enrollment resource.
 
 ```python
 def cmd_phase3(args):
@@ -228,7 +228,7 @@ Now time for the true test, we implement all those changes and see what happens.
 
 ![phase1](/assets/images/outoftune1/phase1.png)
 
-- Next we join a device to Entra.
+- Next we join a device to Entra ID.
 
 ![phase2](/assets/images/outoftune1/phase2.png)
 
@@ -247,6 +247,6 @@ Now time for the true test, we implement all those changes and see what happens.
 At this point we have successfully bypassed some of the most common conditional access policies I personally encounter. I plan to follow up with a part 2 to go over, compliancy in Intune and the nuances I have seen and demonstrating a complete attack chain taking us to a PRT with compliance and MFA claims. Again huge shout out to temp43487580!
 
 
-> **Note 1:** To remain transparent, Claude Code was utilized during this research and development. Whilst I am AI avoidant if thats the word, I did see benefits to using Claude helping free my time to do research and not spend hours debugging my awful code because I missed a bracket.
+> **Note 1:** To remain transparent, LLM was utilized during code development. Whilst I am AI avoidant if that's the phrase, I did see benefits to using coding LLMs which helped free my time to do research and not spend hours debugging my awful code because I missed a bracket.
 
-> **Note 2:** Before we begin I want to do a huge shout out to temp43487580 who wrote the original Pytune code which this is all based on, this just builds on their tooling and research.
+> **Note 2:** I want to give a huge shout out to temp43487580 who wrote the original Pytune code which this is all based on, this just builds on their tooling and research.
