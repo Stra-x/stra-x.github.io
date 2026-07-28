@@ -5,7 +5,7 @@ classes: wide
 date: 2026-03-19 
 ---
 
-Whilst rebuilding my test Entra ID tenant, I decided to quickly configure Intune as this wasn't an area where I had spent much time other than looking at one or two script attacks. Once configured I wanted to quickly get a device enrolled just to see if everything was working, for this I turned to pytune instead of building out a host from scratch. 
+Whilst rebuilding my Entra ID tenant, I decided to quickly configure Intune as this wasn't an area where I had spent much time other than looking at one or two script attacks. Once configured I wanted to quickly get a device enrolled just to see if everything was working, for this I turned to pytune instead of building out a host from scratch. 
 
 After firing off pytune, I could add a device to Entra ID no problem but suddenly I was blocked for enrolling the device into Intune. It was a bit of a doh! moment because in my test tenant I always have several conditional access policies up and running to test against but forgot to turn them off when attempting to enrol a fake device with pytune. 
 
