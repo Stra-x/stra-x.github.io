@@ -11,7 +11,7 @@ After firing off pytune, I could add a device to Entra ID no problem but suddenl
 
 ![Pytune blocked for enrolment](/assets/images/outoftune1/pytune-enrollment-blocked.png)
 
-This got me thinking though, pytune was being blocked quite easily by these conditional access policies. The question was then can we still get a rogue device enrolled in a tenant which has some decent conditional access policies in place, get that device in a compliant state andfinally push things further to request a PRT (Primary Refresh Token) for a user using that rogue device and have MFA and device compliancy claims?
+This got me thinking though, pytune was being blocked quite easily by these conditional access policies. The question was then can we still get a rogue device enrolled in a tenant which has some decent conditional access policies in place, get that device in a compliant state and finally push things further to request a PRT (Primary Refresh Token) for a user using that rogue device and have MFA and device compliance claims?
 
 # Conditional Access Setup
 
@@ -104,7 +104,7 @@ In the `get_enrollment_info()` the Microsoft Graph token is used to query the co
 
 This was a bit of a head scratcher for me. When I configured Intune, I setup a couple of CNAME records as per the [Microsoft Docs](https://learn.microsoft.com/en-us/intune/intune-service/enrollment/windows-enrollment-create-cname) to enable auto-discovery. I am an Intune noob but as far as I know auto-discovery needs to be setup for features such as autopilot otherwise a user would need to manually enter certain things making the experience not so seamless. You can see if a target has these records simply by doing a DNS record check `nslookup EnterpriseRegistration.<target org>.com`. 
 
-The point being, these records point to Microsoft infrastructure that routes the user to the correct endpoint for their organization. Can get Microsoft to route us to where we need to go and not need to have access to the target tenant to find the correct endpoint?
+The point being, these records point to Microsoft infrastructure that routes the user to the correct endpoint for their organisation. Can get Microsoft to route us to where we need to go and not need to have access to the target tenant to find the correct endpoint?
 
 Yes is the short answer. Doing some googling I came across Microsoft's [Mobile Device Enrolment Protocol Version 2](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/4d7eadd5-3951-4f1c-8159-c39e07cbe692). In Section 4. Protocol Examples, we have some nice examples to try to do exactly this and get the correct endpoint. 
 
